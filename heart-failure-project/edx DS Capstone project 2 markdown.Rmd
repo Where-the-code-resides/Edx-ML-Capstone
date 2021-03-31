@@ -1,0 +1,232 @@
+---
+title: "edX Data Science Capstone: Heart Failure Project"
+author: "Abideen Sadiq"
+date: "19/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(caret)) install.packages("caret")
+if(!require(dslabs)) install.packages("dslabs")
+if(!require(ggcorrplot)) install.packages("ggcorrplot")
+if(!require(leaps)) install.packages("leaps")
+if(!require(rpart)) install.packages("rpart")
+if(!require(randomForest)) install.packages("randomForest")
+if(!require(e1071)) install.packages("e1071")
+```
+
+# Abstract
+Heart failure means that the heart is unable to pump blood around the body properly. It usually occurs because the heart has become too weak or stiff.
+Heart failure is a long-term condition that tends to get gradually worse over time. If we can identify the key metrics that lead to heart failure, then we can potentially provide healthcare and solutions proactively before the event occurs.
+
+#Introduction
+This report aims to construct a Machine Learning model which will predict whether a person will suffer fatal heart failure upon their next hospital visit.
+The data being used here is the [Heart Failure Data](https://www.kaggle.com/andrewmvd/heart-failure-clinical-data) on Kaggle.
+
+For this report, the Heart Failure dataset is split into a training and a validation set (`train` and `validation` respectively). Only the `train` data set is used for model construction. The `validation` data set is used only for assessing the performance of the *final* model. `train` is split into `heart_train` and `heart_test`. Various models are constructed using `heart_train` and their performances are assessed using `heart_test`. The best performing model is then retrained using `train` and assessed using `validation`. This way, `validation` has no effect on which model is selected to be the final model. The R code used to construct these data sets, models and plots is available in [this](*insert link*) GitHub repo.
+
+`validation` is 20% of the entire data set and `heart_test` is 20% of `train`. The reason 20% is used for testing and validating in this report is because the data set is quite small. Using 20% instead of 10% for example gives more data to assess the performance of the models. 
+
+
+
+
+# Data Exploration
+The structure of the `train` dataset is shown below.
+"PD" is the predictor variable - "1" indicates the patient has passed away. 
+The features are made up of age, gender (biological sex) and a selection of conditions including anaemia, high blood pressure and diabetes, as well as measurements of fluids such as serum creatinine and serum phosphokinase. The data contains observations from 299 patients, 32% of which have passed. It's hard to tell whether this is reflective of the true mortality rate for heart failure as the rate differs over time. 
+
+```{r loading_data, echo = FALSE}
+
+
+```
+
+# Machine Learning Overview: Performance Measurement
+We will focus on two metrics to assess the performance of our models.One is accuracy, which is the proportion of correctly classified 'postive  event' (i.e. the event of importance) outcomes. In this exercise, the positive outcome is a patient passing away (PD = 1)
+
+The other metric is sensitivity, which is the proportion of positive events that are correctly classified.
+However, this can come at a cost of having low Specificity. Specificity is the proportion of negative (i.e. the other outcome) outcomes that are correctly classified, in this case this will be the proporition of surival outcomes correctly classified. 
+
+Naively classifying everyone as "not at risk" would give 100% sensitivity, however it would significantly drop the accuracy. Therefore, this report aims to maximise the mean of the accuracy and the sensitivity. 10-fold cross-validation is used to choose the ideal hyperparameters (where applicable) which maximises the mean of the accuracy and the sensitivity. 
+
+# Approach 1: Logistic Regression
+The first model we'll build will be a logistic regression model. Logistic Regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable.
+
+We assume a linear relationship between the predictor variables and the log-odds (also called logit) of the event that {\displaystyle Y=1}Y=1. This linear relationship can be written in the following mathematical form (where ℓ is the log-odds, {\displaystyle b}b is the base of the logarithm, and {\displaystyle \beta _{i}}\beta _{i} are parameters of the model):
+
+{\displaystyle \ell =\log _{b}{\frac {p}{1-p}}=\beta _{0}+\beta _{1}x_{1}+\beta _{2}x_{2}}{\displaystyle \ell =\log _{b}{\frac {p}{1-p}}=\beta _{0}+\beta _{1}x_{1}+\beta _{2}x_{2}}
+
+One choice that has to be made when constructing a logistic regression model is what cutoff to use. The cutoff $p$ is such that $\hat{\pi}_i>p\Rightarrow$ observation $i$ is classed as positive. A typical choice is 0.5, however the context of this problem gives reason to consider a value lower than 0.5. Not identifying a person at risk of heart failure is more costly than incorrectly classifying someone who is not at risk. 
+
+![Figure XX: Cross validation results for logistic regression model. Optimal p is 0.2.](~/R Stuff/cv_p.png)
+
+```{r logistic, echo = FALSE}
+summary(model_glm)
+```
+The summary of the model, trained on `heart_train`, indicates that a lot of the features aren't statistically significant (p value >0.05). We will try the model again, but only using features that are statistically significant
+
+![Figure XX: Cross validation results for logistic regression model. Optimal p is 0.18.](~/R Stuff/cv_p_2.png)
+
+```{r cm_glm, echo = FALSE}
+cm_glm
+```
+
+```{r results1, echo = FALSE}
+accuracy_results %>%
+  slice(1) %>%
+  kable(caption = "Table 1: Results after construction of the first model.")
+```
+# Approach 2: Naive Bayes 
+
+Naive Bayes is a simple technique for constructing classifiers: models that assign class labels to problem instances, represented as vectors of feature values, where the class labels are drawn from some finite set. There is not a single algorithm for training such classifiers, but a family of algorithms based on a common principle: all naive Bayes classifiers assume that the value of a particular feature is independent of the value of any other feature, given the class variable. 
+
+Abstractly, naïve Bayes is a conditional probability model: given a problem instance to be classified, represented by a vector {\displaystyle \mathbf {x} =(x_{1},\ldots ,x_{n})}{\displaystyle \mathbf {x} =(x_{1},\ldots ,x_{n})} representing some n features (independent variables), it assigns to this instance probabilities:
+
+{\displaystyle p(C_{k}\mid x_{1},\ldots ,x_{n})\,}{\displaystyle p(C_{k}\mid x_{1},\ldots ,x_{n})\,}
+for each of K possible outcomes or classes {\displaystyle C_{k}}C_{k}.[8]
+
+The problem with the above formulation is that if the number of features n is large or if a feature can take on a large number of values, then basing such a model on probability tables is infeasible. We therefore reformulate the model to make it more tractable. Using Bayes' theorem, the conditional probability can be decomposed as
+
+{\displaystyle p(C_{k}\mid \mathbf {x} )={\frac {p(C_{k})\ p(\mathbf {x} \mid C_{k})}{p(\mathbf {x} )}}\,}{\displaystyle p(C_{k}\mid \mathbf {x} )={\frac {p(C_{k})\ p(\mathbf {x} \mid C_{k})}{p(\mathbf {x} )}}\,}
+
+The figure below shows that the non-parametric model performs much better than the Gaussian Naive Bayes model:
+![Figure XX: Cross validation results for Naive Bayes model. Optimal model is the Nonparametric model.](~/R Stuff/cv_nb.png)
+
+
+```{r results2, echo = FALSE}
+accuracy_results %>%
+  slice(1:2) %>%
+  kable(caption = "Table 2: results after construction of the second model")
+```
+# Approach 3: Decision Tree
+A decision tree is a decision support tool that uses a tree-like model of decisions and their possible consequences, including chance event outcomes. Decision trees are commonly used in operations research, specifically in decision analysis. One advantage of decision trees is that they are highly interpretable. The way in which decision trees make classifications is in line with how many people would expect doctors to predict the class of a potentially at-risk patient. The rpart package [[6](https://cran.r-project.org/web/packages/rpart/rpart.pdf)] is used to construct the decision tree. 
+
+The decision that has to be made when constructing a logistic regression model is what complexity parameter (the factor by which the models performance needs to improve by to warrant another split) to use. Bootstrap (25 samples of 25% of the data set) is used to select the optimal complexity parameter. 
+
+The default approach taken by the `train` function in the caret package is to use a `minsplit` of 20 and `minbucket` of 7. The results of the bootstrap are shown in Figure 10, indicating that `r round(opt_cp, 3)` is the optimal choice.
+
+![Figure 10: Bootstrap (25 samples of 25% of the data) results from decision tree. Optimal cp is 0.005.](cv_dt.png)
+
+![Figure 11: Decision tree.](tree_plot.png)
+
+Figure 11 illustrates exactly how the tree makes decisions. The root node makes the first split based on the patient's serum creatinine levels. If it's about 1, they are classed as being at risk. If not, a further split is made based on the patient's ejection_fraction, and so on. The percentage at the bottom of each leaf is the proportion of observations in `heart_train` that lie in that leaf. The decimal above the percentage is the proportion of observations in that leaf that survived.
+
+```{r results3, echo = FALSE}
+accuracy_results %>%
+  slice(1:3) %>%
+  kable(caption = "Table 3: results after construction of the third model")
+```
+ 
+
+# Approach 4: Random Forest
+
+This model is an extension of the decision tree - a random forest is a collection of decision trees. The way the random forest makes predictions is by some form of majority vote among all of the trees. Trees are constructed in a similar way as the previous section, however at each node a random subset of features is chosen to make the split. This increases the independence between the trees (this parameter is `mtry` in the randomForest package [[8](https://cran.r-project.org/web/packages/randomForest/randomForest.pdf)]). Again, bootstrap (25 samples of 25%) is used to choose an optimal mtry. The results are shown below in Figure 13. The optimal value is 7. The randomForest package takes the default `nodesize` (minimum size of terminal nodes) to be 1 and the default `ntree` (number of decision trees in the forest) to be 500. The cutoff value used in this algorithm is `r round(opt_co, 3)` (calculated in the previous section). The cutoff in the random forest works in the same way as in the decision tree.
+
+![Figure 13: Bootstrap results for various values of mtry.](cv_rf.png)
+
+
+The confusion matrix below indicates that the random forest performs very well in comparison to the previous models. it achieves an accuracy of `r round(acc_rf, 3)`, and it also corectly classifies all diabetic patients. Table 4 shows the performances of the first four models.
+
+
+```{r cm_rf, echo = FALSE}
+cm_rf
+```
+
+```{r results4, echo = FALSE}
+accuracy_results %>%
+  slice(1:4) %>%
+  kable(caption = "Table 4: results after construction of the fourth model")
+```
+
+#Approach 5: Support-Vector Machine
+A support-vector machine constructs a hyperplane or set of hyperplanes in a high- or infinite-dimensional space, which can be used for classification, regression, or other tasks like outliers detection. Intuitively, a good separation is achieved by the hyperplane that has the largest distance to the nearest training-data point of any class (so-called functional margin), since in general the larger the margin, the lower the generalization error of the classifier.
+
+Given a training set of {\displaystyle n}n points of the form
+
+{\displaystyle (\mathbf {x} _{1},y_{1}),\ldots ,(\mathbf {x} _{n},y_{n}),}{\displaystyle (\mathbf {x} _{1},y_{1}),\ldots ,(\mathbf {x} _{n},y_{n}),}
+where the {\displaystyle y_{i}}y_{i} are either 1 or −1, each indicating the class to which the point {\displaystyle \mathbf {x} _{i}}\mathbf {x} _{i} belongs. Each {\displaystyle \mathbf {x} _{i}}\mathbf {x} _{i} is a {\displaystyle p}p-dimensional real vector. We want to find the "maximum-margin hyperplane" that divides the group of points {\displaystyle \mathbf {x} _{i}}\mathbf {x} _{i} for which {\displaystyle y_{i}=1}{\displaystyle y_{i}=1} from the group of points for which {\displaystyle y_{i}=-1}{\displaystyle y_{i}=-1} (i.e. separate the groups of patients that died or surived), which is defined so that the distance between the hyperplane and the nearest point {\displaystyle \mathbf {x} _{i}}\mathbf {x} _{i} from either group is maximized.
+
+Any hyperplane can be written as the set of points {\displaystyle \mathbf {x} }\mathbf {x}  satisfying
+
+{\displaystyle \mathbf {w} ^{T}\mathbf {x} -b=0,}{\displaystyle \mathbf {w} ^{T}\mathbf {x} -b=0,}
+where {\displaystyle \mathbf {w} }\mathbf {w}  is the (not necessarily normalized) normal vector to the hyperplane.
+
+The goal of the optimization then is to minimize
+
+{\displaystyle \left[{\frac {1}{n}}\sum _{i=1}^{n}\max \left(0,1-y_{i}(\mathbf {w} ^{T}\mathbf {x} _{i}-b)\right)\right]+\lambda \lVert \mathbf {w} \rVert ^{2},}{\displaystyle \left[{\frac {1}{n}}\sum _{i=1}^{n}\max \left(0,1-y_{i}(\mathbf {w} ^{T}\mathbf {x} _{i}-b)\right)\right]+\lambda \lVert \mathbf {w} \rVert ^{2},}
+where the parameter {\displaystyle \lambda }\lambda  determines the trade-off between increasing the margin size and ensuring that the {\displaystyle \mathbf {x} _{i}}\mathbf {x} _{i} lie on the correct side of the margin.
+
+![Figure XX: CV results for various values of C](cv_svm.png)
+
+The results of the Support-Vector Machine are shown below:
+```{r cm_svm, echo = FALSE}
+cm_svm
+```
+
+```{r results5, echo = FALSE}
+accuracy_results %>%
+  slice(1:5) %>%
+  kable(caption = "Table 4: results after construction of the fourth model")
+```
+
+#Approach 6 Ensemble
+
+The final model is an ensemble of the three best performing models. Since the decision tree performed the worst, it is omitted from the ensemble. It actually makes sense to drop the decision tree since the random forest is supposed to be a better version.
+
+The ensemble takes a majority vote for each observation from the three models (logistic regression, kNN and random forest) and uses that as its prediction. By dropping one of the four models ties are avoided. Ensembling machine learning models is a great strategy to improve accuracy on test sets - it reduces the reliability on the performance of only one algorithm.
+
+The confusion matrix below comes as quite a surprise - the ensemble actually performs worse than the random forest. More on why this may be the case is discussed in the [Conclusion].
+
+
+```{r cm_ens, echo = FALSE}
+cm_ens
+```
+
+
+
+```{r results6, echo = FALSE}
+accuracy_results %>%
+  slice(1:5) %>%
+  kable(caption = "Table 5: results after construction of all the models")
+```
+
+# Final Model (Results)
+
+In typical data science projects, it is usually the case that the ensemble achieves the best results. However, in this report the random forest achieves the best accuracy and sensitivity. Therefore, it is selected to be the final model.
+
+The entire `diabetes` data set is now used to construct a random forest. Like before, bootstrap is used to select an optimal mtry. All other parameters remain unchanged. The results from the bootstrap are shown in Figure 14. The optimal mtry value is 5.
+
+The confusion matrix indicates that the random forest achieves perfect accuracy, correctly identifying all patients in the `validation` data set. Although the algorithm couldn't have performed any better, the results should be interpreted with caution. More on this is discussed in the [Conclusion].
+
+![Figure 14: Bootstrap results for various values of mtry (final model).](rmd_files/images/mtry_final.png)
+
+
+
+
+
+
+```{r cm_final, echo = FALSE}
+cm_final
+```
+
+
+
+# Conclusion
+This report constructs a model using `diabetes` and perfectly predicts the class of each patient in `validation`. Though the model performs exceptionally well, there are a few things that are worth discussing. The first is the size of the available data set and the second is where the data is sampled from.
+
+## Sample Size
+The `diabetes` data set only has 442 observations. Furthermore, the final model is only tested on 78 observations. The final model would be much more reliable if it was trained and tested on a larger data set. A project like this would benefit from having access to a larger number of observations.
+
+## Where the Data is Sampled From
+The second issue is that the data is only sampled from one hospital, Sylhet Diabetic Hospital (SDH). If the data set is a good reflection of the patients admitted to SDH, then the model would maybe be appropriate for use in SDH. However, it would be ill-advised to use this model to predict the class of patients in other hospitals from other countries. A significant improvement on this report would be if the data set was sampled from various hospitals across the world. Thus, the final model would be useful on a global scale.
+
+Using a larger data set taken from a global sample would give the model much more credibility, however it is unlikely that the estimated accuracy of the model would be 100%, like the one in this report. 
+
+On another note, the ensemble actually achieves 100% accuracy on the `validation` data set as well. On a larger data set it might be the case that the ensemble performs better than the random forest. However, if the logistic regression and kNN models were making the same (or similar) mistakes then the random forest would likely perform better. This is something that could be investigated in a future report.
+
+## Potential Impact
+Diabetes can have a severe impact on many bodily functions. A machine learning model such as the final model in this report could help to detect diabetes at an early stage. This could prevent strokes, blindness and even amputations in many patients.
+
+A very appealing aspect of the final model is that it is very easy to implement. Where some conditions need medical expertise and advanced equipment, diagnosis for diabetes could be largely aided with a simple questionnaire. Any doctor reading this would rightfully disagree that a diagnosis could be made based solely on a questionnaire, however if a model trained on a more appropriate data set was to also have an excellent performance, it would be a valuable asset. Granted that patients answer the questions accurately, the test could even be made available online. The results could indicate a percentage of a person being at risk, and if the risk was reasonably high (above 10% or so) the person could be advised to seek proper medical advice.
