@@ -36,7 +36,7 @@ library(e1071)
 # Import and clean data
 #######################
 
-# the github repo with the data set "heart_failure_clinical_records_dataset" is available here: (insert github link here) 
+# the github repo with the data set "heart_failure_clinical_records_dataset" is available here: (https://github.com/Where-the-code-resides/Edx-ML-Capstone/tree/main/heart-failure-project) 
 # the file "heart_failure_clinical_records_dataset.csv" provided in the github repo must be included in the working (project) directory for the code below to run
 
 #read in data
@@ -68,7 +68,7 @@ levels(heart$PD) <- c("Yes", "No")
 heart <- heart %>% dplyr::select(-time)
 
 
-#create training set and validation dataset - 20% of total data.
+# create training set and validation dataset - 20% of total data.
 #Valiation set will only be used to test our final chosen model
 
 set.seed(1995, sample.kind = "Rounding")
