@@ -36,8 +36,8 @@ library(e1071)
 # Import and clean data
 #######################
 
-# the github repo with the data set "diabetes_data_upload" is available here: (insert github link here) 
-# the file "diabetes_data_upload.csv" provided in the github repo must be included in the working (project) directory for the code below to run
+# the github repo with the data set "heart_failure_clinical_records_dataset" is available here: (insert github link here) 
+# the file "heart_failure_clinical_records_dataset.csv" provided in the github repo must be included in the working (project) directory for the code below to run
 
 #read in data
 heart <- read.csv("heart_failure_clinical_records_dataset.csv")
@@ -266,7 +266,7 @@ for (i in 1:k) {
     # obtain the predictions (these are probabilities)
     cv_preds_glm <- predict(cv_mod_glm, cv_test, type = "response")
     
-    # if prediction>p, class as Positive. 
+    # if predictions > p, class as Yes. 
     cv_cm <- confusionMatrix(ifelse(cv_preds_glm>p, "Yes","No") %>% factor(levels = c("Yes","No")), cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -317,7 +317,7 @@ for (i in 1:k) {
     # obtain the predictions (these are probabilities)
     cv_preds_glm <- predict(cv_mod_glm, cv_test, type = "response")
     
-    # if prediction>p, class as Positive. 
+    # if prediction>p, class as Yes. 
     cv_cm <- confusionMatrix(ifelse(cv_preds_glm>p, "Yes","No") %>% factor(levels = c("Yes","No")), cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -409,10 +409,10 @@ for (i in 1:k) {
     # create the decision tree
     cv_mod_tree <- rpart(PD~., cp = cp, data =  cv_train, method = "class")
     
-    # obtain the predictions (these are probabilities)
+    # obtain the predictions 
     cv_preds_tree <- predict(cv_mod_tree, cv_test, type = "class")
     
-    # if prediction>p, class as Positive. 
+    # confusion matrix 
     cv_cm <- confusionMatrix(cv_preds_tree, cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -487,10 +487,10 @@ for (i in 1:k) {
                               data = cv_train,
                               mtry = m)
     
-    # obtain the predictions (these are probabilities)
+    # obtain the predictions
     cv_preds_rf <- predict(cv_mod_rf, cv_test)
     
-    # if prediction>p, class as Positive. 
+    # confusion matrix 
     cv_cm <- confusionMatrix(cv_preds_rf, cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -533,11 +533,12 @@ accuracy_results <- rbind(accuracy_results,
                                      sensitivity = cm_rf$byClass["Sensitivity"]))
 
 #######################
-#Support Vector Machine
+# Support Vector Machine
 #######################
 
-#will try a range of cost values for the ideal model
+#will try a range of cost values for the ideal model and store results in a matrix
 #10-fold CV will be used to obtain the optimal cost
+
 
 cost = seq(0.01, 1, 0.01)
 accuracy_cost <- matrix(nrow = k, ncol = length(cost))
@@ -563,10 +564,10 @@ for (i in 1:k) {
                       kernel = "linear",
                       cost = c)
     
-    # obtain the predictions (these are probabilities)
+    # obtain the predictions 
     cv_preds_svm <- predict(cv_mod_svm, cv_test)
     
-    # if prediction>p, class as Positive. 
+    # confusion matrix 
     cv_cm <- confusionMatrix(cv_preds_svm, cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -703,10 +704,10 @@ for (i in 1:k) {
     # create the decision tree
     cv_mod_tree <- rpart(PD~., cp = cp, data =  cv_train, method = "class")
     
-    # obtain the predictions (these are probabilities)
+    # obtain the predictions
     cv_preds_tree <- predict(cv_mod_tree, cv_test, type = "class")
     
-    # if prediction>p, class as Positive. 
+    # confusion matrix
     cv_cm <- confusionMatrix(cv_preds_tree, cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
@@ -758,16 +759,16 @@ for (i in 1:k) {
   # fill matrix with results (mean of accuracy and sensitivity) from decision tree 
   accuracy_mtry_final[i,] <- sapply(mtry, function(m){
     
-    # create the decision tree
+    # create the random forest
     set.seed(1, sample.kind = "Rounding")
     cv_mod_rf <- randomForest(PD ~.,
                               data = cv_train,
                               mtry = m)
     
-    # obtain the predictions (these are probabilities)
+    # obtain the predictions 
     cv_preds_rf <- predict(cv_mod_rf, cv_test)
     
-    # if prediction>p, class as Positive. 
+    #confusion matrix
     cv_cm <- confusionMatrix(cv_preds_rf, cv_test$PD)
     
     # return the mean of the accuracy and sensitivity
